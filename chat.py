@@ -3,13 +3,14 @@ import tempfile
 import streamlit as st
 import pinecone
 
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory
-from langchain.memory.chat_message_histories import SQLChatMessageHistory
-from langchain.embeddings import HuggingFaceEmbeddings
+# from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.chains import ConversationalRetrievalChain
-from langchain.vectorstores import Pinecone
+from langchain_community.vectorstores import Pinecone as pc_vector
 
 from dotenv import load_dotenv
 
@@ -19,16 +20,18 @@ st.set_page_config(page_title="Chat with Preloaded index", page_icon="📚")
 st.title("RAG using LangChain and Pinecone")
 
 # initialize pinecone
-pinecone.init(
-    api_key=os.getenv("PINECONE_API_KEY"),
-    environment=os.getenv("PINECONE_ENV"),
-)
+# pinecone.init(
+#     api_key=os.getenv("PINECONE_API_KEY"),
+#     environment=os.getenv("PINECONE_ENV"),
+# )
+from pinecone import Pinecone, PodSpec
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
 
 def configure_retriever(index_name):
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    docsearch = Pinecone.from_existing_index(index_name, embeddings)
+    docsearch = pc_vector.from_existing_index(index_name, embeddings)
     retriever = docsearch.as_retriever(search_type="mmr")
     return retriever
 
@@ -88,7 +91,8 @@ memory = ConversationBufferMemory(memory_key="chat_history", chat_memory=msgs, r
 
 # Setup LLM and QA chain
 llm = ChatOpenAI(
-    model_name="gpt-3.5-turbo", openai_api_key=openai_api_key, temperature=0, streaming=True
+    model_name="gpt-3.5-turbo-0125", openai_api_key=openai_api_key, temperature=0, streaming=True
+    #replaced with a cheaper model
 )
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm, retriever=retriever, memory=memory, verbose=True
